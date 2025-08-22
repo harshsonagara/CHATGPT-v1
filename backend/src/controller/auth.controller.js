@@ -71,7 +71,7 @@ async function loginUser(req, res) {
     res.cookie("token", token);
 
     res.status(201).json({
-        message: "User loffed in successfully",
+        message: "User logged in successfully",
         user: {
             email: user.email,
             _id: user._id,
