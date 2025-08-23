@@ -49,16 +49,14 @@ function initiSocketServer(httperver) {
                 role: "user"
             });
 
-            const chatHistory = await messageModel.find({
-                chat:messagePayload.chat,
-            });
+            const chatHistory = (await messageModel.find({
+                chat: messagePayload.chat,
+            }).sort({ createdAt: -1 }).limit(20).lean()).reverse();
 
-           
-            
-            const response = await aiService.generateResponce( chatHistory.map(item=>{
+            const response = await aiService.generateResponce(chatHistory.map(item => {
                 return {
-                    role:item.role,
-                    parts:[ { text : item.content}]
+                    role: item.role,
+                    parts: [{ text: item.content }]
                 }
             }));
 
