@@ -36,22 +36,18 @@ function initiSocketServer(httperver) {
     });
 
     io.on("connection", (socket) => {
-        // console.log('User connectedd : ', socket.user);
-        // console.log("New socket connection : ", socket.id);
 
         socket.on("ai-message", async (messagePayload) => {
 
-            // console.log(messagePayload); /*  {  chat , content }*/
-
             const message = await messageModel.create({
-                user: socket.user._id,
                 chat: messagePayload.chat,
+                user: socket.user._id,
                 content: messagePayload.content,
                 role: "user"
             });
 
             const vectors = await aiService.generateVector(messagePayload.content);
-         
+
             await createMemory({
                 vectors,
                 messageId: message._id,
@@ -66,8 +62,10 @@ function initiSocketServer(httperver) {
             const memory = await queryMemory({
                 queryVector: vectors,
                 limit: 3,
-                metadata: {}
-            })
+                metadata: {
+                    user: socket.user._id,
+                }
+            });
 
             console.log('memory', memory);
 
@@ -75,12 +73,30 @@ function initiSocketServer(httperver) {
                 chat: messagePayload.chat,
             }).sort({ createdAt: -1 }).limit(20).lean()).reverse();
 
-            const response = await aiService.generateResponce(chatHistory.map(item => {
+            const stm = chatHistory.map(item => {
                 return {
                     role: item.role,
                     parts: [{ text: item.content }]
                 }
-            }));
+            });
+
+            const ltm = [
+                {
+                    role: "user",
+                    parts: [{
+                        text: `
+                        these are some previous message from the chat , use them to genearte a responce
+                        ${memory.map(item => item.metadata.text).join("\n")}
+                        
+                        `
+                    }]
+                }
+            ]
+
+            console.log(ltm[0]);
+            console.log(stm[0]);
+
+            const response = await aiService.generateResponce([...ltm, ...stm]);
 
             const responceMessage = await messageModel.create({
                 user: socket.user._id,
@@ -106,6 +122,7 @@ function initiSocketServer(httperver) {
                 content: response,
                 chat: messagePayload.chat
             });
+
 
         });
     });
